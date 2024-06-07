@@ -6,6 +6,7 @@ import numpy as np
 import pycocotools.mask as mask_util
 import torch
 from mmengine.fileio import dump
+from parameterized import parameterized
 
 from mmdet.evaluation import CocoMetric
 
@@ -111,7 +112,8 @@ class TestCocoMetric(TestCase):
         with self.assertRaisesRegex(KeyError, 'metric should be one of'):
             CocoMetric(ann_file=fake_json_file, metric='unknown')
 
-    def test_evaluate(self):
+    @parameterized.expand([False, True])
+    def test_evaluate(self, use_faster_coco_eval):
         # create dummy data
         fake_json_file = osp.join(self.tmp_dir.name, 'fake_data.json')
         self._create_dummy_coco_json(fake_json_file)
@@ -121,7 +123,9 @@ class TestCocoMetric(TestCase):
         coco_metric = CocoMetric(
             ann_file=fake_json_file,
             classwise=False,
-            outfile_prefix=f'{self.tmp_dir.name}/test')
+            outfile_prefix=f'{self.tmp_dir.name}/test',
+            use_faster_coco_eval=use_faster_coco_eval,
+        )
         coco_metric.dataset_meta = dict(classes=['car', 'bicycle'])
         coco_metric.process(
             {},
@@ -144,7 +148,9 @@ class TestCocoMetric(TestCase):
             ann_file=fake_json_file,
             metric=['bbox', 'segm'],
             classwise=False,
-            outfile_prefix=f'{self.tmp_dir.name}/test')
+            outfile_prefix=f'{self.tmp_dir.name}/test',
+            use_faster_coco_eval=use_faster_coco_eval,
+        )
         coco_metric.dataset_meta = dict(classes=['car', 'bicycle'])
         coco_metric.process(
             {},
@@ -174,7 +180,10 @@ class TestCocoMetric(TestCase):
         with self.assertRaisesRegex(KeyError,
                                     'metric item "invalid" is not supported'):
             coco_metric = CocoMetric(
-                ann_file=fake_json_file, metric_items=['invalid'])
+                ann_file=fake_json_file,
+                metric_items=['invalid'],
+                use_faster_coco_eval=use_faster_coco_eval,
+            )
             coco_metric.dataset_meta = dict(classes=['car', 'bicycle'])
             coco_metric.process({}, [
                 dict(
@@ -184,7 +193,10 @@ class TestCocoMetric(TestCase):
 
         # test custom metric_items
         coco_metric = CocoMetric(
-            ann_file=fake_json_file, metric_items=['mAP_m'])
+            ann_file=fake_json_file,
+            metric_items=['mAP_m'],
+            use_faster_coco_eval=use_faster_coco_eval,
+        )
         coco_metric.dataset_meta = dict(classes=['car', 'bicycle'])
         coco_metric.process(
             {},
@@ -195,7 +207,8 @@ class TestCocoMetric(TestCase):
         }
         self.assertDictEqual(eval_results, target)
 
-    def test_classwise_evaluate(self):
+    @parameterized.expand([False, True])
+    def test_classwise_evaluate(self, use_faster_coco_eval):
         # create dummy data
         fake_json_file = osp.join(self.tmp_dir.name, 'fake_data.json')
         self._create_dummy_coco_json(fake_json_file)
@@ -203,9 +216,12 @@ class TestCocoMetric(TestCase):
 
         # test single coco dataset evaluation
         coco_metric = CocoMetric(
-            ann_file=fake_json_file, metric='bbox', classwise=True)
-        # coco_metric1 = CocoMetric(
-        #     ann_file=fake_json_file, metric='bbox', classwise=True)
+            ann_file=fake_json_file,
+            metric='bbox',
+            classwise=True,
+            use_faster_coco_eval=use_faster_coco_eval,
+        )
+
         coco_metric.dataset_meta = dict(classes=['car', 'bicycle'])
         coco_metric.process(
             {},
@@ -223,18 +239,24 @@ class TestCocoMetric(TestCase):
         }
         self.assertDictEqual(eval_results, target)
 
-    def test_manually_set_iou_thrs(self):
+    @parameterized.expand([False, True])
+    def test_manually_set_iou_thrs(self, use_faster_coco_eval):
         # create dummy data
         fake_json_file = osp.join(self.tmp_dir.name, 'fake_data.json')
         self._create_dummy_coco_json(fake_json_file)
 
         # test single coco dataset evaluation
         coco_metric = CocoMetric(
-            ann_file=fake_json_file, metric='bbox', iou_thrs=[0.3, 0.6])
+            ann_file=fake_json_file,
+            metric='bbox',
+            iou_thrs=[0.3, 0.6],
+            use_faster_coco_eval=use_faster_coco_eval,
+        )
         coco_metric.dataset_meta = dict(classes=['car', 'bicycle'])
         self.assertEqual(coco_metric.iou_thrs, [0.3, 0.6])
 
-    def test_fast_eval_recall(self):
+    @parameterized.expand([False, True])
+    def test_fast_eval_recall(self, use_faster_coco_eval):
         # create dummy data
         fake_json_file = osp.join(self.tmp_dir.name, 'fake_data.json')
         self._create_dummy_coco_json(fake_json_file)
@@ -242,7 +264,10 @@ class TestCocoMetric(TestCase):
 
         # test default proposal nums
         coco_metric = CocoMetric(
-            ann_file=fake_json_file, metric='proposal_fast')
+            ann_file=fake_json_file,
+            metric='proposal_fast',
+            use_faster_coco_eval=use_faster_coco_eval,
+        )
         coco_metric.dataset_meta = dict(classes=['car', 'bicycle'])
         coco_metric.process(
             {},
@@ -264,13 +289,18 @@ class TestCocoMetric(TestCase):
         target = {'coco/AR@2': 0.5, 'coco/AR@4': 1.0}
         self.assertDictEqual(eval_results, target)
 
-    def test_evaluate_proposal(self):
+    @parameterized.expand([False, True])
+    def test_evaluate_proposal(self, use_faster_coco_eval):
         # create dummy data
         fake_json_file = osp.join(self.tmp_dir.name, 'fake_data.json')
         self._create_dummy_coco_json(fake_json_file)
         dummy_pred = self._create_dummy_results()
 
-        coco_metric = CocoMetric(ann_file=fake_json_file, metric='proposal')
+        coco_metric = CocoMetric(
+            ann_file=fake_json_file,
+            metric='proposal',
+            use_faster_coco_eval=use_faster_coco_eval,
+        )
         coco_metric.dataset_meta = dict(classes=['car', 'bicycle'])
         coco_metric.process(
             {},
@@ -287,11 +317,16 @@ class TestCocoMetric(TestCase):
         }
         self.assertDictEqual(eval_results, target)
 
-    def test_empty_results(self):
+    @parameterized.expand([False, True])
+    def test_empty_results(self, use_faster_coco_eval):
         # create dummy data
         fake_json_file = osp.join(self.tmp_dir.name, 'fake_data.json')
         self._create_dummy_coco_json(fake_json_file)
-        coco_metric = CocoMetric(ann_file=fake_json_file, metric='bbox')
+        coco_metric = CocoMetric(
+            ann_file=fake_json_file,
+            metric='bbox',
+            use_faster_coco_eval=use_faster_coco_eval,
+        )
         coco_metric.dataset_meta = dict(classes=['car', 'bicycle'])
         bboxes = np.zeros((0, 4))
         labels = np.array([])
@@ -308,7 +343,8 @@ class TestCocoMetric(TestCase):
         # coco api Index error will be caught
         coco_metric.evaluate(size=1)
 
-    def test_evaluate_without_json(self):
+    @parameterized.expand([False, True])
+    def test_evaluate_without_json(self, use_faster_coco_eval):
         dummy_pred = self._create_dummy_results()
 
         dummy_mask = np.zeros((10, 10), order='F', dtype=np.uint8)
@@ -340,7 +376,8 @@ class TestCocoMetric(TestCase):
             ann_file=None,
             metric=['bbox', 'segm'],
             classwise=False,
-            outfile_prefix=f'{self.tmp_dir.name}/test')
+            outfile_prefix=f'{self.tmp_dir.name}/test',
+            use_faster_coco_eval=use_faster_coco_eval)
         coco_metric.dataset_meta = dict(classes=['car', 'bicycle'])
         coco_metric.process({}, [
             dict(
@@ -373,7 +410,8 @@ class TestCocoMetric(TestCase):
         self.assertTrue(
             osp.isfile(osp.join(self.tmp_dir.name, 'test.gt.json')))
 
-    def test_format_only(self):
+    @parameterized.expand([False, True])
+    def test_format_only(self, use_faster_coco_eval):
         # create dummy data
         fake_json_file = osp.join(self.tmp_dir.name, 'fake_data.json')
         self._create_dummy_coco_json(fake_json_file)
@@ -384,7 +422,8 @@ class TestCocoMetric(TestCase):
                 ann_file=fake_json_file,
                 classwise=False,
                 format_only=True,
-                outfile_prefix=None)
+                outfile_prefix=None,
+                use_faster_coco_eval=use_faster_coco_eval)
 
         coco_metric = CocoMetric(
             ann_file=fake_json_file,
